@@ -7,11 +7,11 @@ if __name__ == '__main__':
     exit()
 
 # 欲监听的文件夹 emp : "/www/webroot"
-LISTEN_DIR = r"D:\杂项\fileListener\test"
+LISTEN_DIR = ""
 
 # 欲临时存放的文件夹 emp: "/www/safely"
-SAFELY_DIR = r"D:\杂项\fileListener\safety",
-    
+SAFELY_DIR = ""
+
 # 后缀白名单 , 不区分大小写
 PASS_SUFFIX = ["jpg", "jpeg", "png", "gif", "webp", "tiff", "mp4", "flv"]
 
