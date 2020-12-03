@@ -7,10 +7,10 @@ if __name__ == '__main__':
     exit()
 
 # 欲监听的文件夹 emp : "/www/webroot"
-LISTEN_DIR = ""
+LISTEN_DIR = r"D:\杂项\fileListener\test"
 
 # 欲临时存放的文件夹 emp: "/www/safely"
-SAFELY_DIR = ""
+SAFELY_DIR = r"D:\杂项\fileListener\safe"
 
 # 后缀白名单 , 不区分大小写
 PASS_SUFFIX = ["jpg", "jpeg", "png", "gif", "webp", "tiff", "mp4", "flv"]
@@ -25,3 +25,9 @@ POST_URL = ""
 
 # 调试开关
 DEBUG = False
+
+# 允许的ip地址
+ALLOW_IPS = ["127.0.0.1", "localhost"]
+
+# 日志文件路径
+LOG_PATH = ""

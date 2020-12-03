@@ -14,6 +14,7 @@
     {
         fileName: 文件名
         path:     完整文件名
+        code:     状态码
     }
 
     当服务器希望还原文件时, 向本程序的WEB服务器根目录 (监听地址和端口在 CONFIG.py 中设置)发送文件的MD5和文件名, 如果程序监测合格将会还原文件.
@@ -38,13 +39,28 @@ from urllib import parse
 import os, hashlib, shutil, logging
 import CONFIG
 
+
+logging.basicConfig(
+    # 日志级别
+    level = logging.INFO,
+    # 日志格式
+    # 时间、代码所在文件名、代码行号、日志级别名字、日志信息
+    format = '%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+    # 打印日志的时间
+    datefmt = '%a, %d %b %Y %H:%M:%S',
+    # 日志文件存放的目录（目录必须存在）及日志文件名
+    filename = CONFIG.LOG_PATH,
+    # 打开日志文件的方式
+    filemode = 'w'
+)
+
 from flask import Flask, request
 
 webApp = Flask(__name__)
 WHITELIST = []  # 白名单,防止恢复后有又被移动
 
 
-def move_file(path: str):
+def move_file(path: str, code: str):
     """
     将文件移动至指定路径并且命名为随机 32 位字符,防止冲突
     :param path: 文件路径
@@ -82,7 +98,7 @@ def move_file(path: str):
 
     if CONFIG.DEBUG:
         # 调试开关, 只发送数据不移动文件
-        send_to_server(fileName, new_path)
+        send_to_server(fileName, new_path, code)
         return
 
     # 检查safe文件夹里是否存在相应子目录
@@ -97,26 +113,29 @@ def move_file(path: str):
             logging.error("there is a error when moving the file.", exc_info=e)
 
     try:
-        shutil.move(path, new_path)
-        send_to_server(fileName, new_path)
+        # 服务器同意才移动文件
+        if send_to_server(fileName, path, code): shutil.move(path, new_path)
     except Exception as e:
         logging.error("Move file error.", exc_info=e)
 
 
-def send_to_server(fileName: str, path: str):
+def send_to_server(fileName: str, path: str, code:str):
     """
-    将文件信息发送至服务器
+    将文件信息发送至服务器, 返回True时才移动文件
     :param fileName 文件名
     :param path     文件完整路径
     :return:
     """
 
-    data = bytes(parse.urlencode({"fileName": fileName, "path": path}), encoding='utf8')
+    data = bytes(parse.urlencode({"fileName": fileName, "path": path, "code": code}), encoding='utf8')
 
     for i in range(5):  # 尝试五次
         try:
-            request_.urlopen(CONFIG.POST_URL, data)
-            break
+            rs = request_.urlopen(CONFIG.POST_URL, data)
+            if rs.read().decode('utf-8') == "200":
+                return True
+            else:
+                return False
         except Exception as e:
             logging.error("post data to server failed.", exc_info=e)
 
@@ -124,15 +143,20 @@ def send_to_server(fileName: str, path: str):
 class FileHandler(events.FileSystemEventHandler):
     def on_modified(self, event):
         # 文件被修改
-        move_file(event.src_path)
+        move_file(event.src_path, '201')
 
     def on_created(self, event):
         # 文件被创建
-        move_file(event.src_path)
+        move_file(event.src_path, '202')
 
 
 @webApp.route("/", methods=["POST"])
 def recover_file():
+
+    if request.host not in CONFIG.ALLOW_IPS:
+        # 只对白名单ip放行
+        return "500"
+
     path: str = request.form["path"]  # 原文件完整路径
     safe_path: str = path.replace(CONFIG.LISTEN_DIR, CONFIG.SAFELY_DIR)
     if os.path.exists(safe_path):
